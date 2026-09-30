@@ -69,8 +69,18 @@ class PlayQueue {
         if (currentIndex == -1) currentIndex = 0
     }
 
+    /**
+     * Puts [e] right after the current episode (moving it if already queued).
+     * The current episode never changes; "play next" on the episode that is
+     * already playing is a no-op.
+     */
     fun playNext(e: Episode) {
-        items.removeAll { it.id == e.id }.also { removed -> if (removed && currentIndex >= items.size) currentIndex = items.lastIndex }
+        val existing = items.indexOfFirst { it.id == e.id }
+        if (existing >= 0 && existing == currentIndex) return
+        if (existing >= 0) {
+            items.removeAt(existing)
+            if (existing < currentIndex) currentIndex--
+        }
         val at = if (currentIndex == -1) 0 else currentIndex + 1
         items.add(at.coerceAtMost(items.size), e)
         if (currentIndex == -1) currentIndex = 0
