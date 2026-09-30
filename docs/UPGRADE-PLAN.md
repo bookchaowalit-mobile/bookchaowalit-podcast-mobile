@@ -31,3 +31,10 @@ Compose UI is still a placeholder and the Android build is unverified locally.
 - Fixed `PlayQueue.playNext`: moving an episode queued *before* the current one, or the current one itself, silently switched the currently playing episode. The current episode now never changes; play-next on it is a no-op.
 - 8 more edge-case tests (14 total): play-next in all positions, empty queue, duplicate adds, malformed `itunes:duration` values, format boundaries, progress clamping/zero-length episodes. Verified with `./gradlew -p core test --offline`.
 - Still not verified locally: the Compose `app/` (no Android SDK; dl.google.com is blocked here).
+
+## Done in this pass (pass 3)
+
+- Fixed `Durations.parse` overflow: a huge `itunes:duration` such as `200000000000000000:00` wrapped the Long total into a garbage/negative value (then `Episode` threw on the negative duration) instead of returning null.
+- Fixed progress after a feed shortens an episode: `remainingSec` went negative (reducing the queue total) and `resumeAt` pointed past the end; both are now clamped.
+- `seek` no longer overflows Int for extreme positions/deltas.
+- 3 regression tests (17 total), verified with `./gradlew -p core test --offline`.

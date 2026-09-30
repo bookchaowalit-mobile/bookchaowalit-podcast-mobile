@@ -16,8 +16,13 @@ object Durations {
         if (parts.isEmpty() || parts.size > 3 || parts.any { it.isEmpty() || !it.all(Char::isDigit) }) return null
         val nums = parts.map { it.toLongOrNull() ?: return null }
         if (nums.size > 1 && nums.drop(1).any { it >= 60 }) return null
-        val total = nums.fold(0L) { acc, n -> acc * 60 + n }
-        return if (total > Int.MAX_VALUE) null else total.toInt()
+        // Bail out as soon as the running total exceeds Int range, before Long can overflow.
+        var total = 0L
+        for (n in nums) {
+            total = total * 60 + n
+            if (total > Int.MAX_VALUE) return null
+        }
+        return total.toInt()
     }
 
     /** "1:02:03" for >= 1h, otherwise "2:03". */
@@ -46,13 +51,16 @@ class ProgressTracker(private val playedThreshold: Double = 0.95) {
     fun markUnplayed(id: String) { played -= id; positions.remove(id) }
 
     /** Resume point: restart from 0 once played, else the saved position. */
-    fun resumeAt(episode: Episode): Int = if (isPlayed(episode.id)) 0 else position(episode.id)
+    fun resumeAt(episode: Episode): Int =
+        if (isPlayed(episode.id)) 0 else position(episode.id).coerceAtMost(episode.durationSec)
 
-    fun remainingSec(episode: Episode): Int = episode.durationSec - position(episode.id)
+    /** Never negative, even if the feed later reports a shorter duration than the saved position. */
+    fun remainingSec(episode: Episode): Int = (episode.durationSec - position(episode.id)).coerceAtLeast(0)
 }
 
 /** Seek helper applying skip-back/skip-forward with clamping. */
-fun seek(positionSec: Int, deltaSec: Int, durationSec: Int): Int = (positionSec + deltaSec).coerceIn(0, durationSec)
+fun seek(positionSec: Int, deltaSec: Int, durationSec: Int): Int =
+    (positionSec.toLong() + deltaSec).coerceIn(0L, durationSec.toLong()).toInt()
 
 /** Play queue with "play next", "add to end", removal and move. */
 class PlayQueue {
